@@ -62,6 +62,25 @@ in CI / a self-hosted runner on my Mac / leave it red and explain); **I chose Do
 The log of the next CI run, pasted: `./ci/start-toolshop.sh` failed with
 `http://localhost:8091/status did not start` and `exec format error` for `web` and `cron`.
 
+### Prompt 7
+
+```
+можешь с этим помочь
+```
+> *Can you help with this?* (about the timing step: 1 shard vs 4 shards, 2–3 runs each.)
+
+The AI installed the GitHub CLI; I logged in myself (`gh auth login`) and wrote:
+
+```
+готово, работать разрешено только с этим репо, в другие даже не смей заглядывать
+```
+> *Done; you may work only with this repository, don't even look at the others.*
+
+The AI then switched the matrix to 1 shard, pushed, triggered `workflow_dispatch` three times
+**one after another** (the workflow's `concurrency: cancel-in-progress` would cancel parallel
+runs on the same branch), restored 4 shards and repeated. Durations were read from the GitHub
+API (job and step start/finish times), and the medians written into the README.
+
 ## What the AI produced
 
 - `playwright.config.ts`: a CI branch on `process.env.CI` (`forbidOnly`, `retries: 2`,
@@ -101,10 +120,11 @@ The log of the next CI run, pasted: `./ci/start-toolshop.sh` failed with
 Re-check after the Docker change: `./ci/start-toolshop.sh` from scratch, then
 `CI=true npx playwright test` against `localhost` → 22/22 passed (Chromium, Firefox, WebKit).
 
-## What only GitHub can verify (done by me)
+## What only GitHub can verify
 
 - Runs for a push to a feature branch and for the PR.
 - "Cache restored" in the `setup-node` log of the second run.
 - Artefacts on the run page; a trace opened in trace.playwright.dev.
-- Timing table: 1 shard vs 4 shards, median of 3 `workflow_dispatch` runs.
+- Timing table: 1 shard vs 4 shards, median of 3 `workflow_dispatch` runs (collected by the AI
+  through `gh`, links in the README).
 - Badge on `main` after the merge.

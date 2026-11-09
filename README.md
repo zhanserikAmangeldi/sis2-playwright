@@ -77,10 +77,28 @@ contains browser tests (22 tests locally = 25 in CI across 4 shards). This is ex
 
 | Configuration | Total run time | Run tests step (slowest shard) | Run |
 | --- | --- | --- | --- |
-| 1 job, no sharding | X min Y s | X min Y s | [run](link) |
-| 4 shards + merge | X min Y s | X min Y s | [run](link) |
+| 1 job, no sharding | 2 min 37 s | 45 s | [run](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42699808000) |
+| 4 shards + merge | 2 min 29 s | 25 s | [run](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42700944189) |
 
-Median of 3 runs via `workflow_dispatch`. Conclusion: ...
+Median of 3 runs via `workflow_dispatch` on GitHub-hosted `ubuntu-latest`, 22 tests
+(setup + 7 tests × 3 browsers). All runs:
+
+| Configuration | Run 1 | Run 2 | Run 3 |
+| --- | --- | --- | --- |
+| 1 shard — total / tests | [3:03 / 45 s](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42698818834) | [2:28 / 38 s](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42699345264) | [2:37 / 48 s](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42699808000) |
+| 4 shards — total / slowest tests | [2:29 / 28 s](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42700944189) | [2:42 / 19 s](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42701411089) | [2:13 / 25 s](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42701894152) |
+
+**Conclusion:** sharding cut the test step by ~45 % (45 s → 25 s), but the whole run by only ~5 %
+(2:37 → 2:29), because the suite is small and every shard pays the same ~80–90 s of fixed setup
+(browsers ≈ 40 s, starting and seeding the Toolshop ≈ 40 s) plus a ~15 s merge job, while using
+~4× the runner minutes. Sharding pays off once the test step, not the setup, dominates the run.
+
+Two more observations from the runs:
+- Shards are not perfectly even: the shard that gets the checkout and comparison tests takes
+  ~25–30 s, the others ~13 s.
+- One earlier push run took 19.5 min because a single shard's `apt` download of browser
+  dependencies hung for 18 min ([run](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42681408093)) — a runner hiccup, and the reason the
+  table uses medians of `workflow_dispatch` runs.
 
 ### Running locally in CI mode
 
