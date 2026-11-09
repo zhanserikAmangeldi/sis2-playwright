@@ -1,5 +1,7 @@
 # SIS 2 — Playwright test suite for the Toolshop
 
+[![Playwright Tests](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/workflows/playwright.yml/badge.svg?branch=main)](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/workflows/playwright.yml)
+
 Automated UI tests for **https://practicesoftwaretesting.com** (the Toolshop demo shop), written in
 **TypeScript** with **Playwright Test**. Five test cases from the SIS 2 brief, run in
 Chromium, Firefox and WebKit.
@@ -10,6 +12,7 @@ Chromium, Firefox and WebKit.
 | [Prompt.md](Prompt.md) | The exact prompts given to the AI tool, and which tool/model was used |
 | [Review.md](Review.md) | What the AI produced, how it was reviewed and corrected, and why |
 | [screenshots/](screenshots) | Run reports and evidence of bugs found in the buggy build |
+| [CI-AI.md](CI-AI.md) | CI part: AI tool, model, prompts, and how the AI output was checked |
 
 ## How to run
 
@@ -32,6 +35,61 @@ Other scripts:
 | `npm run typecheck` | TypeScript type check |
 
 No account setup is needed: every test creates the users it needs.
+
+## CI
+
+[![Playwright Tests](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/workflows/playwright.yml/badge.svg?branch=main)](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/workflows/playwright.yml)
+
+**CI system:** GitHub Actions. It is built into GitHub, where the repository already lives, needs
+no server of its own, is free for public repositories and supports matrices for sharding.
+
+**Pipeline** (`.github/workflows/playwright.yml`):
+- runs on every push and pull request (no branch filter), plus manual runs (`workflow_dispatch`);
+- `npm ci` with the npm cache (`actions/setup-node`, `cache: npm`), then
+  `npx playwright install --with-deps` (Chromium, Firefox, WebKit + system libraries);
+- the full suite, no `--grep` / `--project` filters, split into 4 shards (`--shard=i/4`) running in
+  parallel, `fail-fast: false`;
+- the `merge-reports` job merges the shards' blob reports into one HTML report and one JUnit file
+  (`merge.config.ts`);
+- artefacts: `playwright-report` (HTML), `test-results-N` (traces, screenshots, videos, per-shard
+  JUnit), `junit-report` (merged JUnit); kept for 14 days. They are uploaded even when tests fail.
+
+**CI settings** (`playwright.config.ts`, when `CI=true`): `forbidOnly: true`, `retries: 2`,
+`workers: 2`, reporters `list`, `blob`, `junit`; always `trace: 'on-first-retry'`,
+`screenshot: 'only-on-failure'`, `video: 'retain-on-failure'`.
+
+**Target URL.** The tests run against the public Toolshop by default. To point CI at another
+build, set the repository variables `BASE_URL` / `API_URL` (Settings → Secrets and variables →
+Actions → Variables). No secrets are needed: every test creates its own user.
+
+**Note on shards.** `auth.setup.ts` is a project dependency, so it runs once in every shard that
+contains browser tests (22 tests locally = 25 in CI across 4 shards). This is expected.
+
+### Runtime
+
+| Configuration | Total run time | Run tests step (slowest shard) | Run |
+| --- | --- | --- | --- |
+| 1 job, no sharding | X min Y s | X min Y s | [run](link) |
+| 4 shards + merge | X min Y s | X min Y s | [run](link) |
+
+Median of 3 runs via `workflow_dispatch`. Conclusion: ...
+
+### Running locally in CI mode
+
+```bash
+npm ci
+npx playwright install --with-deps
+CI=true npx playwright test
+```
+
+Shards + merge, as in CI:
+
+```bash
+mkdir -p all-blob-reports
+for i in 1 2 3 4; do CI=true npx playwright test --shard=$i/4 && cp blob-report/*.zip all-blob-reports/; done
+npx playwright merge-reports --config merge.config.ts ./all-blob-reports
+npx playwright show-report
+```
 
 ## What is covered
 
