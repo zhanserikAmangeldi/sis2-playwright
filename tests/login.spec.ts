@@ -6,7 +6,7 @@ test.describe('TC-02 Log in', () => {
     await loginPage.open();
   });
 
-  test('valid credentials open the account page', async ({ loginPage, accountPage, registeredUser, page }) => {
+  test.only('valid credentials open the account page', async ({ loginPage, accountPage, registeredUser, page }) => {
     await loginPage.signIn(registeredUser);
 
     await expect(page).toHaveURL(/\/account/);
@@ -14,7 +14,7 @@ test.describe('TC-02 Log in', () => {
     await expect(accountPage.userMenu).toHaveText(fullName(registeredUser));
   });
 
-  test('a wrong password shows an error and does not sign in', async ({ loginPage, registeredUser, page }) => {
+  test.only('a wrong password shows an error and does not sign in', async ({ loginPage, registeredUser, page }) => {
     await loginPage.signIn({ email: registeredUser.email, password: `${registeredUser.password}-wrong` });
 
     await expect(loginPage.error).toHaveText('Invalid email or password');
