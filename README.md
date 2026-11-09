@@ -63,7 +63,8 @@ no server of its own, is free for public repositories and supports matrices for 
   *"item focused with '.only' is not allowed due to the 'forbidOnly' option"*.
 - [`demo/flaky-trace`](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42703046471): a test that fails on its first attempt passes on the
   retry; the run stays green, the test is reported as *flaky*, and `test-results-2…4` contain
-  the `trace.zip` of the failed attempt (opens in [trace.playwright.dev](https://trace.playwright.dev)).
+  the `trace.zip` of the failed attempt, opened in [trace.playwright.dev](https://trace.playwright.dev):
+  [screenshots/07-ci-trace-viewer.png](screenshots/07-ci-trace-viewer.png).
   Green runs have no traces, by design: `trace: 'on-first-retry'`.
 
 **Application under test in CI.** The public site `practicesoftwaretesting.com` is behind

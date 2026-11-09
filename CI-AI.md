@@ -91,7 +91,8 @@ API (job and step start/finish times), and the medians written into the README.
 The AI checked the artefacts of a green run: no traces, because `trace: 'on-first-retry'`
 records one only when a test is retried. It pushed a demo branch `demo/flaky-trace` with a test
 that deliberately fails its first attempt; CI retried it, marked it flaky, stayed green, and
-uploaded `trace.zip` files, which I opened in trace.playwright.dev.
+uploaded `trace.zip` files. I opened one in trace.playwright.dev
+(`screenshots/07-ci-trace-viewer.png`).
 
 ## What the AI produced
 
