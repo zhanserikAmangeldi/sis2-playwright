@@ -1,5 +1,7 @@
 # SIS 2 — Playwright test suite for the Toolshop
 
+[![Playwright Tests](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/workflows/playwright.yml/badge.svg?branch=main)](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/workflows/playwright.yml)
+
 Automated UI tests for **https://practicesoftwaretesting.com** (the Toolshop demo shop), written in
 **TypeScript** with **Playwright Test**. Five test cases from the SIS 2 brief, run in
 Chromium, Firefox and WebKit.
@@ -10,6 +12,7 @@ Chromium, Firefox and WebKit.
 | [Prompt.md](Prompt.md) | The exact prompts given to the AI tool, and which tool/model was used |
 | [Review.md](Review.md) | What the AI produced, how it was reviewed and corrected, and why |
 | [screenshots/](screenshots) | Run reports and evidence of bugs found in the buggy build |
+| [CI-AI.md](CI-AI.md) | CI part: AI tool, model, prompts, and how the AI output was checked |
 
 ## How to run
 
@@ -32,6 +35,97 @@ Other scripts:
 | `npm run typecheck` | TypeScript type check |
 
 No account setup is needed: every test creates the users it needs.
+
+## CI
+
+[![Playwright Tests](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/workflows/playwright.yml/badge.svg?branch=main)](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/workflows/playwright.yml)
+
+**CI system:** GitHub Actions. It is built into GitHub, where the repository already lives, needs
+no server of its own, is free for public repositories and supports matrices for sharding.
+
+**Pipeline** (`.github/workflows/playwright.yml`):
+- runs on every push and pull request (no branch filter), plus manual runs (`workflow_dispatch`);
+- `npm ci` with the npm cache (`actions/setup-node`, `cache: npm`), then
+  `npx playwright install --with-deps` (Chromium, Firefox, WebKit + system libraries);
+- the full suite, no `--grep` / `--project` filters, split into 4 shards (`--shard=i/4`) running in
+  parallel, `fail-fast: false`;
+- the `merge-reports` job merges the shards' blob reports into one HTML report and one JUnit file
+  (`merge.config.ts`);
+- artefacts: `playwright-report` (HTML), `test-results-N` (traces, screenshots, videos, per-shard
+  JUnit), `junit-report` (merged JUnit); kept for 14 days. They are uploaded even when tests fail.
+
+**CI settings** (`playwright.config.ts`, when `CI=true`): `forbidOnly: true`, `retries: 2`,
+`workers: 2`, reporters `list`, `blob`, `junit`; always `trace: 'on-first-retry'`,
+`screenshot: 'only-on-failure'`, `video: 'retain-on-failure'`.
+
+**Evidence runs** (on demo branches that are never merged):
+- [`demo/forbid-only`](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42712786571): a forgotten `test.only` fails CI with
+  *"item focused with '.only' is not allowed due to the 'forbidOnly' option"*.
+- [`demo/flaky-trace`](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42716688770): a test that fails on its first attempt passes on the
+  retry; the run stays green, the test is reported as *flaky*, and `test-results-2…4` contain
+  the `trace.zip` of the failed attempt, opened in [trace.playwright.dev](https://trace.playwright.dev):
+  [screenshots/07-ci-trace-viewer.png](screenshots/07-ci-trace-viewer.png).
+  Green runs have no traces, by design: `trace: 'on-first-retry'`.
+
+**Application under test in CI.** The public site `practicesoftwaretesting.com` is behind
+Cloudflare, which answers GitHub-hosted runners with a *"Performing security verification"* page
+instead of the shop (the [first CI run](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42710265336) failed on it: `auth.setup.ts` waited 60 s for the login
+form, three times). Locally the same suite passed, because a home IP is not challenged. So in CI
+every shard starts its own Toolshop from the official prebuilt images
+(`testsmith/practice-software-testing-sprint5-api/ui:2.5` + the official `nginx` with the
+project's own config, see `ci/toolshop.compose.yml`), seeds the
+database (`ci/start-toolshop.sh`) and runs against `BASE_URL=http://localhost:4200`,
+`API_URL=http://localhost:8091`. The upstream `web` and `cron` images are arm64-only and failed on
+the amd64 runners with `exec format error` ([run](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42711104845)), so `web` is replaced by the
+official `nginx` with the project's config and `cron` is not used. Bonus: each shard has its own clean database, and the run no
+longer depends on a shared public site. Without these variables (on a dev machine) the tests
+still target the public site.
+
+**Note on shards.** `auth.setup.ts` is a project dependency, so it runs once in every shard that
+contains browser tests (22 tests locally = 25 in CI across 4 shards). This is expected.
+
+### Runtime
+
+| Configuration | Total run time | Run tests step (slowest shard) | Run |
+| --- | --- | --- | --- |
+| 1 job, no sharding | 2 min 36 s | 38 s | [run](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42714030880) |
+| 4 shards + merge | 2 min 27 s | 25 s | [run](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42715905521) |
+
+Median of 3 runs via `workflow_dispatch` on GitHub-hosted `ubuntu-latest`, 22 tests
+(setup + 7 tests × 3 browsers). All runs:
+
+| Configuration | Run 1 | Run 2 | Run 3 |
+| --- | --- | --- | --- |
+| 1 shard — total / tests | [2:10 / 33 s](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42713686108) | [2:36 / 38 s](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42714030880) | [2:42 / 54 s](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42714475599) |
+| 4 shards — total / slowest tests | [2:39 / 24 s](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42715443812) | [2:27 / 28 s](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42715905521) | [2:11 / 25 s](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42716344218) |
+
+**Conclusion:** sharding cut the test step by ~35 % (38 s → 25 s), but the whole run by only ~6 %
+(2:36 → 2:27), because the suite is small and every shard pays the same ~75–90 s of fixed setup
+(browsers ≈ 40 s, starting and seeding the Toolshop ≈ 40 s) plus a ~15 s merge job, while using
+~4× the runner minutes. Sharding pays off once the test step, not the setup, dominates the run.
+
+Shards are not perfectly even: the shard that gets the checkout and comparison tests takes
+~25 s, the others ~10–20 s. Single runs vary by ±20 s on shared runners, which is why the table
+uses medians.
+
+### Running locally in CI mode
+
+```bash
+npm ci
+npx playwright install --with-deps
+./ci/start-toolshop.sh                       # needs Docker; same app as in CI
+BASE_URL=http://localhost:4200 API_URL=http://localhost:8091 CI=true npx playwright test
+docker compose -f ci/toolshop.compose.yml down -v   # stop and wipe the app
+```
+
+Shards + merge, as in CI:
+
+```bash
+mkdir -p all-blob-reports
+for i in 1 2 3 4; do BASE_URL=http://localhost:4200 API_URL=http://localhost:8091 CI=true npx playwright test --shard=$i/4 && cp blob-report/*.zip all-blob-reports/; done
+npx playwright merge-reports --config merge.config.ts ./all-blob-reports
+npx playwright show-report
+```
 
 ## What is covered
 
