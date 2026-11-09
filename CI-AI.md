@@ -33,6 +33,30 @@ The AI summarised the six requirements and the plan, and asked for the repositor
 ```
 > *I've added everything.* (I had copied the `sis2-playwright` repository into the folder.)
 
+### Prompt 3
+
+```
+норм если тесты падают?
+```
+> *Is it OK if the tests fail?* (After the first push, CI was red.) The AI answered no — the
+> guide requires a green run — and asked for the logs.
+
+### Prompt 4
+
+The log of shard 4 pasted from GitHub Actions: `auth.setup.ts` timed out waiting for
+`getByTestId('email')`, three times.
+
+### Prompt 5
+
+```
+добавил один блоб
+```
+> *I added one blob.* (I downloaded a `blob-report` artefact into the folder.)
+
+The AI read the `error-context.md` files inside it: the page snapshot was Cloudflare's
+*"Performing security verification"* page. It offered three options (run the Toolshop in Docker
+in CI / a self-hosted runner on my Mac / leave it red and explain); **I chose Docker**.
+
 ## What the AI produced
 
 - `playwright.config.ts`: a CI branch on `process.env.CI` (`forbidOnly`, `retries: 2`,
@@ -41,6 +65,8 @@ The AI summarised the six requirements and the plan, and asked for the repositor
 - `merge.config.ts`: HTML + merged JUnit reporters for `playwright merge-reports`.
 - `.github/workflows/playwright.yml`: push / pull_request / workflow_dispatch, npm cache, browsers
   with system deps, 4-shard matrix, artefact uploads (14 days), a `Merge reports` job.
+- `ci/toolshop.compose.yml` + `ci/start-toolshop.sh`: the Toolshop from the official
+  prebuilt images, started and seeded in every shard (after the Cloudflare problem, below).
 - `env.ts`: `??` → `||` for `BASE_URL` / `API_URL` (see below).
 - `.gitignore`: `reports/`, `all-blob-reports/`, `.act-artifacts/`, `.secrets`.
 - README: badge, the CI section and an empty timing table.
@@ -63,6 +89,10 @@ The AI summarised the six requirements and the plan, and asked for the repositor
 | 2 | The guide installs only Chromium, but this suite runs **Chromium, Firefox and WebKit**. Installing only Chromium would break the other projects; filtering with `--project` would break "full suite, no filters". | `npx playwright install --with-deps` (all browsers) | The full suite is the requirement; three browsers also make sharding more meaningful |
 | 3 | `auth.setup.ts` is a project dependency. With sharding it runs in every shard that needs it (22 tests → 25 across 4 shards). | Kept and documented in the README | Each shard is a separate machine and needs its own signed-in session |
 | 4 | The suite already had `fullyParallel`, `forbidOnly`, `retries` on `CI`. | Moved to one `isCI` constant; added the CI reporters | No behaviour change locally |
+| 5 | **First CI run was red.** The blob report's page snapshot showed Cloudflare's *"Performing security verification"* page: the public site blocks GitHub-hosted runners. The API (not behind Cloudflare) worked, so the user was registered, but the login form never appeared. Locally (home IP) everything passed. | Every shard starts its own Toolshop in Docker (official images, pinned to `2.5`), seeds the DB and tests `localhost`. Checked locally first: stack up in ~16 s, then 22/22 passed in all 3 browsers. | Bypassing a site's bot protection is not acceptable; testing our own copy of the app is the clean fix and makes each shard independent |
+
+Re-check after the Docker change: `./ci/start-toolshop.sh` from scratch, then
+`CI=true npx playwright test` against `localhost` → 22/22 passed (Chromium, Firefox, WebKit).
 
 ## What only GitHub can verify (done by me)
 

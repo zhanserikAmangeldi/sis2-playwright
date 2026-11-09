@@ -58,9 +58,16 @@ no server of its own, is free for public repositories and supports matrices for 
 `workers: 2`, reporters `list`, `blob`, `junit`; always `trace: 'on-first-retry'`,
 `screenshot: 'only-on-failure'`, `video: 'retain-on-failure'`.
 
-**Target URL.** The tests run against the public Toolshop by default. To point CI at another
-build, set the repository variables `BASE_URL` / `API_URL` (Settings → Secrets and variables →
-Actions → Variables). No secrets are needed: every test creates its own user.
+**Application under test in CI.** The public site `practicesoftwaretesting.com` is behind
+Cloudflare, which answers GitHub-hosted runners with a *"Performing security verification"* page
+instead of the shop (the first CI run failed on it: `auth.setup.ts` waited 60 s for the login
+form, three times). Locally the same suite passed, because a home IP is not challenged. So in CI
+every shard starts its own Toolshop from the official prebuilt images
+(`testsmith/practice-software-testing-sprint5-*:2.5`, see `ci/toolshop.compose.yml`), seeds the
+database (`ci/start-toolshop.sh`) and runs against `BASE_URL=http://localhost:4200`,
+`API_URL=http://localhost:8091`. Bonus: each shard has its own clean database, and the run no
+longer depends on a shared public site. Without these variables (on a dev machine) the tests
+still target the public site.
 
 **Note on shards.** `auth.setup.ts` is a project dependency, so it runs once in every shard that
 contains browser tests (22 tests locally = 25 in CI across 4 shards). This is expected.
@@ -79,14 +86,16 @@ Median of 3 runs via `workflow_dispatch`. Conclusion: ...
 ```bash
 npm ci
 npx playwright install --with-deps
-CI=true npx playwright test
+./ci/start-toolshop.sh                       # needs Docker; same app as in CI
+BASE_URL=http://localhost:4200 API_URL=http://localhost:8091 CI=true npx playwright test
+docker compose -f ci/toolshop.compose.yml down -v   # stop and wipe the app
 ```
 
 Shards + merge, as in CI:
 
 ```bash
 mkdir -p all-blob-reports
-for i in 1 2 3 4; do CI=true npx playwright test --shard=$i/4 && cp blob-report/*.zip all-blob-reports/; done
+for i in 1 2 3 4; do BASE_URL=http://localhost:4200 API_URL=http://localhost:8091 CI=true npx playwright test --shard=$i/4 && cp blob-report/*.zip all-blob-reports/; done
 npx playwright merge-reports --config merge.config.ts ./all-blob-reports
 npx playwright show-report
 ```
