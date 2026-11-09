@@ -58,6 +58,14 @@ no server of its own, is free for public repositories and supports matrices for 
 `workers: 2`, reporters `list`, `blob`, `junit`; always `trace: 'on-first-retry'`,
 `screenshot: 'only-on-failure'`, `video: 'retain-on-failure'`.
 
+**Evidence runs** (on demo branches that are never merged):
+- [`demo/forbid-only`](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42695457176): a forgotten `test.only` fails CI with
+  *"item focused with '.only' is not allowed due to the 'forbidOnly' option"*.
+- [`demo/flaky-trace`](https://github.com/zhanserikAmangeldi/sis2-playwright/actions/runs/42703046471): a test that fails on its first attempt passes on the
+  retry; the run stays green, the test is reported as *flaky*, and `test-results-2…4` contain
+  the `trace.zip` of the failed attempt (opens in [trace.playwright.dev](https://trace.playwright.dev)).
+  Green runs have no traces, by design: `trace: 'on-first-retry'`.
+
 **Application under test in CI.** The public site `practicesoftwaretesting.com` is behind
 Cloudflare, which answers GitHub-hosted runners with a *"Performing security verification"* page
 instead of the shop (the first CI run failed on it: `auth.setup.ts` waited 60 s for the login

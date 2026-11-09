@@ -81,6 +81,18 @@ The AI then switched the matrix to 1 shard, pushed, triggered `workflow_dispatch
 runs on the same branch), restored 4 shards and repeated. Durations were read from the GitHub
 API (job and step start/finish times), and the medians written into the README.
 
+### Prompt 8
+
+```
+Сами откройте трейс из артефакта test-results-N на trace.playwright.dev. ... а куда это
+```
+> *"Open a trace from the test-results-N artefact" — where is that?*
+
+The AI checked the artefacts of a green run: no traces, because `trace: 'on-first-retry'`
+records one only when a test is retried. It pushed a demo branch `demo/flaky-trace` with a test
+that deliberately fails its first attempt; CI retried it, marked it flaky, stayed green, and
+uploaded `trace.zip` files, which I opened in trace.playwright.dev.
+
 ## What the AI produced
 
 - `playwright.config.ts`: a CI branch on `process.env.CI` (`forbidOnly`, `retries: 2`,
