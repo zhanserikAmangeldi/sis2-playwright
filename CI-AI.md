@@ -57,6 +57,11 @@ The AI read the `error-context.md` files inside it: the page snapshot was Cloudf
 *"Performing security verification"* page. It offered three options (run the Toolshop in Docker
 in CI / a self-hosted runner on my Mac / leave it red and explain); **I chose Docker**.
 
+### Prompt 6
+
+The log of the next CI run, pasted: `./ci/start-toolshop.sh` failed with
+`http://localhost:8091/status did not start` and `exec format error` for `web` and `cron`.
+
 ## What the AI produced
 
 - `playwright.config.ts`: a CI branch on `process.env.CI` (`forbidOnly`, `retries: 2`,
@@ -65,7 +70,7 @@ in CI / a self-hosted runner on my Mac / leave it red and explain); **I chose Do
 - `merge.config.ts`: HTML + merged JUnit reporters for `playwright merge-reports`.
 - `.github/workflows/playwright.yml`: push / pull_request / workflow_dispatch, npm cache, browsers
   with system deps, 4-shard matrix, artefact uploads (14 days), a `Merge reports` job.
-- `ci/toolshop.compose.yml` + `ci/start-toolshop.sh`: the Toolshop from the official
+- `ci/toolshop.compose.yml` + `ci/start-toolshop.sh` + `ci/nginx.conf`: the Toolshop from the official
   prebuilt images, started and seeded in every shard (after the Cloudflare problem, below).
 - `env.ts`: `??` → `||` for `BASE_URL` / `API_URL` (see below).
 - `.gitignore`: `reports/`, `all-blob-reports/`, `.act-artifacts/`, `.secrets`.
@@ -90,6 +95,8 @@ in CI / a self-hosted runner on my Mac / leave it red and explain); **I chose Do
 | 3 | `auth.setup.ts` is a project dependency. With sharding it runs in every shard that needs it (22 tests → 25 across 4 shards). | Kept and documented in the README | Each shard is a separate machine and needs its own signed-in session |
 | 4 | The suite already had `fullyParallel`, `forbidOnly`, `retries` on `CI`. | Moved to one `isCI` constant; added the CI reporters | No behaviour change locally |
 | 5 | **First CI run was red.** The blob report's page snapshot showed Cloudflare's *"Performing security verification"* page: the public site blocks GitHub-hosted runners. The API (not behind Cloudflare) worked, so the user was registered, but the login form never appeared. Locally (home IP) everything passed. | Every shard starts its own Toolshop in Docker (official images, pinned to `2.5`), seeds the DB and tests `localhost`. Checked locally first: stack up in ~16 s, then 22/22 passed in all 3 browsers. | Bypassing a site's bot protection is not acceptable; testing our own copy of the app is the clean fix and makes each shard independent |
+
+| 6 | **Second CI run: API did not start.** `web` and `cron` failed with `exec format error`: their `latest` images on Docker Hub are built for **arm64 only** (it worked on my Apple Silicon Mac, not on GitHub's amd64 runners). | `web` is just `nginx:1.23.3-alpine` + their `vhost.conf`, so CI uses the official multi-arch nginx with a copy of that config (`ci/nginx.conf`). `cron` (background jobs) is dropped: no test depends on it. Verified 22/22 without it, and checked with `docker manifest inspect` that every remaining image exists for amd64. | Lesson: "works on my machine" also applies to CPU architecture |
 
 Re-check after the Docker change: `./ci/start-toolshop.sh` from scratch, then
 `CI=true npx playwright test` against `localhost` → 22/22 passed (Chromium, Firefox, WebKit).

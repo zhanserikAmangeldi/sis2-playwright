@@ -22,28 +22,16 @@ services:
     command: >
       bash -c "ng serve --host 0.0.0.0 --port 4200"
 
+  # Their "web" and "cron" images are arm64-only (exec format error on GitHub's amd64
+  # runners). web = the same nginx with their config; cron (background jobs) is not needed.
   web:
-    image: testsmith/practice-software-testing-web:latest
+    image: nginx:1.23.3-alpine
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
       - 8091:80
     depends_on:
       - laravel-api
-
-  cron:
-    image: testsmith/practice-software-testing-cron:latest
-    depends_on:
-      - mariadb
-      - laravel-api
-    volumes:
-      - laravel-app-code:/var/www
-    working_dir: /var/www
-    command: sh -c "crond -f -l 8"
-    environment:
-      - "PHP_OPCACHE_VALIDATE_TIMESTAMPS=1"
-      - "DB_PORT=3306"
-      - "DB_HOST=mariadb"
-      - "host=localhost"
-      - "DISABLE_LOGGING=true"
 
   mariadb:
     image: yobasystems/alpine-mariadb:10.6.11

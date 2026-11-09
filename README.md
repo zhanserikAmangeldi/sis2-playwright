@@ -63,7 +63,8 @@ Cloudflare, which answers GitHub-hosted runners with a *"Performing security ver
 instead of the shop (the first CI run failed on it: `auth.setup.ts` waited 60 s for the login
 form, three times). Locally the same suite passed, because a home IP is not challenged. So in CI
 every shard starts its own Toolshop from the official prebuilt images
-(`testsmith/practice-software-testing-sprint5-*:2.5`, see `ci/toolshop.compose.yml`), seeds the
+(`testsmith/practice-software-testing-sprint5-api/ui:2.5` + the official `nginx` with the
+project's own config, see `ci/toolshop.compose.yml`), seeds the
 database (`ci/start-toolshop.sh`) and runs against `BASE_URL=http://localhost:4200`,
 `API_URL=http://localhost:8091`. Bonus: each shard has its own clean database, and the run no
 longer depends on a shared public site. Without these variables (on a dev machine) the tests
