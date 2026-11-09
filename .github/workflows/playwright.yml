@@ -33,11 +33,16 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
+      # The public site is behind Cloudflare, which blocks GitHub runners with a
+      # "security verification" page, so every shard tests its own copy of the app.
+      - name: Start Toolshop (Docker)
+        run: ./ci/start-toolshop.sh
+
       - name: Run Playwright tests
         run: npx playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
         env:
-          BASE_URL: ${{ vars.BASE_URL }}  # empty → production Toolshop (see env.ts)
-          API_URL: ${{ vars.API_URL }}
+          BASE_URL: http://localhost:4200
+          API_URL: http://localhost:8091
 
       - name: Upload blob report
         if: ${{ !cancelled() }}

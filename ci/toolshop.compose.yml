@@ -1,0 +1,59 @@
+# The Toolshop app under test, started inside CI from the official prebuilt images
+# (based on docker-compose.prod.yml of github.com/testsmith-io/practice-software-testing).
+# The public site sits behind Cloudflare, which blocks GitHub-hosted runners, so CI tests
+# a local copy: UI on http://localhost:4200, API on http://localhost:8091.
+name: toolshop
+services:
+  laravel-api:
+    image: testsmith/practice-software-testing-sprint5-api:2.5
+    environment:
+      - "PHP_OPCACHE_VALIDATE_TIMESTAMPS=1"
+      - "DB_PORT=3306"
+      - "DB_HOST=mariadb"
+      - "host=localhost"
+      - "DISABLE_LOGGING=true"
+    volumes:
+      - laravel-app-code:/var/www
+
+  angular-ui:
+    image: testsmith/practice-software-testing-sprint5-ui:2.5
+    ports:
+      - 4200:4200
+    command: >
+      bash -c "ng serve --host 0.0.0.0 --port 4200"
+
+  web:
+    image: testsmith/practice-software-testing-web:latest
+    ports:
+      - 8091:80
+    depends_on:
+      - laravel-api
+
+  cron:
+    image: testsmith/practice-software-testing-cron:latest
+    depends_on:
+      - mariadb
+      - laravel-api
+    volumes:
+      - laravel-app-code:/var/www
+    working_dir: /var/www
+    command: sh -c "crond -f -l 8"
+    environment:
+      - "PHP_OPCACHE_VALIDATE_TIMESTAMPS=1"
+      - "DB_PORT=3306"
+      - "DB_HOST=mariadb"
+      - "host=localhost"
+      - "DISABLE_LOGGING=true"
+
+  mariadb:
+    image: yobasystems/alpine-mariadb:10.6.11
+    expose:
+      - 3306
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: user
+      MYSQL_PASSWORD: root
+      MYSQL_DATABASE: toolshop
+
+volumes:
+  laravel-app-code:
